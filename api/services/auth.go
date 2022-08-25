@@ -12,7 +12,7 @@ import (
 
 type AuthService interface {
 	Register(data requests.UserRequest) (responses.UserResponse, error)
-	Login(data requests.UserRequest) (responses.LoginResponse, error)
+	Login(data requests.UserRequest) (*responses.LoginResponse, error)
 }
 
 type authService struct {
@@ -54,19 +54,19 @@ func (a authService) Register(data requests.UserRequest) (responses.UserResponse
 	return userResponse, nil
 }
 
-func (a authService) Login(data requests.UserRequest) (responses.LoginResponse, error) {
+func (a authService) Login(data requests.UserRequest) (*responses.LoginResponse, error) {
 	var existedUser entities.User
 	var err error
 	existedUser, err = a.userRepository.FindUserByUsername(*data.Username)
 
 	if err != nil || existedUser.Id == 0 {
-		return responses.LoginResponse{}, gin.Error{Meta: "User not found", Type: 404}
+		return &responses.LoginResponse{}, gin.Error{Meta: "User not found", Type: 404}
 	}
 
 	err = utils.CompareHashAndPassword(existedUser.Password, []byte(*data.Password))
 
 	if err != nil {
-		return responses.LoginResponse{}, gin.Error{Meta: "Password incorrect", Type: 400}
+		return &responses.LoginResponse{}, gin.Error{Meta: "Password incorrect", Type: 400}
 	}
 
 	user := responses.UserResponse{
@@ -76,8 +76,13 @@ func (a authService) Login(data requests.UserRequest) (responses.LoginResponse, 
 	}
 
 	var token *string
-	token, err, _ = utils.GenerateTokenAndHandleError(existedUser, 30)
+	var statusCode int
+	token, err, statusCode = utils.GenerateTokenAndHandleError(existedUser, 30)
+
+	if statusCode != 200 {
+		return nil, err
+	}
 
 	userRes := responses.LoginResponse{Data: user, AccessToken: *token}
-	return userRes, nil
+	return &userRes, nil
 }

@@ -14,4 +14,5 @@ func AuthRoutesSetup(r *gin.Engine) {
 	authController := controllers.New(authService)
 
 	r.POST("/api/users/admin", authController.Register)
+	r.POST("/api/auth/login", authController.Login)
 }
